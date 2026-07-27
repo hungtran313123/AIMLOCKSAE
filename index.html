@@ -112,6 +112,7 @@
                 0 0 60px rgba(168, 85, 247, 0.12),
                 0 0 120px rgba(168, 85, 247, 0.05),
                 inset 0 1px 0 rgba(255, 255, 255, 0.06);
+            will-change: transform, opacity;
         }
 
         #keySystemModal::before {
@@ -1208,6 +1209,36 @@
             from { opacity: 0; transform: translateX(-15px); }
             to { opacity: 1; transform: translateX(0); }
         }
+
+        /* ========== MOBILE OPTIMIZATION ========== */
+        @media (max-width: 768px) {
+            #keySystemModal, .mod-menu {
+                backdrop-filter: blur(16px);
+                -webkit-backdrop-filter: blur(16px);
+            }
+
+            .key-modal-glow.glow-1,
+            .key-modal-glow.glow-2 {
+                filter: blur(50px);
+                opacity: 0.6;
+            }
+
+            .key-scanline { animation-duration: 6s; }
+            .key-border-spark { animation-duration: 8s; }
+            .key-grid-overlay { display: none; }
+
+            .key-shield-icon .shield-ring {
+                animation-duration: 5s;
+            }
+
+            #particleCanvas {
+                opacity: 0.4;
+            }
+
+            body::before, body::after {
+                filter: blur(60px);
+            }
+        }
     </style>
 </head>
 <body>
@@ -1368,7 +1399,8 @@
             const canvas = document.getElementById('particleCanvas');
             const ctx = canvas.getContext('2d');
             let particles = [];
-            const PARTICLE_COUNT = 40;
+            const isMobile = window.innerWidth < 768;
+            const PARTICLE_COUNT = isMobile ? 15 : 40;
 
             function resize() {
                 canvas.width = window.innerWidth;
