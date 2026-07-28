@@ -1213,30 +1213,61 @@
         /* ========== MOBILE OPTIMIZATION ========== */
         @media (max-width: 768px) {
             #keySystemModal, .mod-menu {
-                backdrop-filter: blur(16px);
-                -webkit-backdrop-filter: blur(16px);
+                backdrop-filter: none;
+                -webkit-backdrop-filter: none;
             }
 
             .key-modal-glow.glow-1,
-            .key-modal-glow.glow-2 {
-                filter: blur(50px);
-                opacity: 0.6;
-            }
-
-            .key-scanline { animation-duration: 6s; }
-            .key-border-spark { animation-duration: 8s; }
-            .key-grid-overlay { display: none; }
-
-            .key-shield-icon .shield-ring {
-                animation-duration: 5s;
+            .key-modal-glow.glow-2,
+            .key-scanline,
+            .key-border-spark,
+            .key-grid-overlay,
+            .key-shield-icon .shield-ring,
+            .shield-ring::after {
+                display: none;
             }
 
             #particleCanvas {
-                opacity: 0.4;
+                display: none;
             }
 
             body::before, body::after {
-                filter: blur(60px);
+                display: none;
+            }
+
+            .key-btn::before {
+                display: none;
+            }
+
+            .key-btn {
+                box-shadow: 0 6px 20px rgba(168,85,247,0.3);
+            }
+
+            #keySystemModal::before,
+            #keySystemModal::after {
+                animation: none;
+            }
+
+            .key-badge-top::before {
+                animation: none;
+            }
+
+            .key-shield-icon {
+                animation: none;
+            }
+
+            .menu-header::before,
+            .menu-header::after {
+                animation: none;
+            }
+
+            .mod-menu.unlocked {
+                animation: menuReveal 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            }
+
+            .toast {
+                backdrop-filter: none;
+                -webkit-backdrop-filter: none;
             }
         }
     </style>
@@ -1400,7 +1431,8 @@
             const ctx = canvas.getContext('2d');
             let particles = [];
             const isMobile = window.innerWidth < 768;
-            const PARTICLE_COUNT = isMobile ? 15 : 40;
+            if (isMobile) return;
+            const PARTICLE_COUNT = 40;
 
             function resize() {
                 canvas.width = window.innerWidth;
