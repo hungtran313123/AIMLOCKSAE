@@ -1502,6 +1502,55 @@
             box-shadow: 0 0 22px rgba(255, 45, 45, 0.25);
         }
 
+        /* Bộ chọn phiên bản game */
+        .game-version {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .game-version-label {
+            flex-shrink: 0;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 8px;
+            font-weight: 700;
+            letter-spacing: 1.2px;
+            color: #ff9999;
+        }
+
+        .game-version-btn {
+            flex: 1;
+            padding: 9px 8px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 0;
+            background: rgba(255, 255, 255, 0.04);
+            color: #9a9a9a;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.6px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .game-version-btn.active {
+            border-color: #ff2d2d;
+            background: linear-gradient(135deg, rgba(255, 45, 45, 0.3), rgba(120, 0, 0, 0.2));
+            color: #ffffff;
+            box-shadow: 0 0 12px rgba(255, 45, 45, 0.25);
+        }
+
+        .game-version-btn:active {
+            transform: scale(0.97);
+        }
+
+        .game-version-btn:focus-visible {
+            outline: 2px solid rgba(255, 255, 255, 0.7);
+            outline-offset: 2px;
+        }
+
         /* Chữ đỏ quá tối trên nền đen -> đổi sang đỏ sáng / trắng */
         .menu-footer { color: #ff8080; }
         .feature-item.main-aimlock .f-name { color: #ff4d4d !important; }
@@ -1642,6 +1691,12 @@
                         <input type="checkbox" id="sub5" onchange="toggleFeature('Đạn thẳng 20%', this.checked, this.closest('.feature-item'))">
                         <span class="slider"></span>
                     </label>
+                </div>
+
+                <div class="game-version" id="gameVersion">
+                    <span class="game-version-label">PHIÊN BẢN</span>
+                    <button type="button" class="game-version-btn active" data-game="freefire" title="Mở Free Fire thường" onclick="setGameVersion('freefire')">FF THƯỜNG</button>
+                    <button type="button" class="game-version-btn" data-game="freefiremax" title="Mở Free Fire Max (máy chỉ có Max thì chọn mục này)" onclick="setGameVersion('freefiremax')">FF MAX</button>
                 </div>
 
                 <button type="button" class="injector-aimlock" id="injectorAimlockBtn" onclick="runAimlockInjector(this)">
@@ -2093,9 +2148,43 @@
         let gameOpened = false;
 
         const FREE_FIRE_TARGETS = [
-            { name: "FREE FIRE", pkg: "com.dts.freefireth", scheme: "freefire" },
-            { name: "FREE FIRE MAX", pkg: "com.dts.freefiremax", scheme: "freefiremax" }
+            { key: "freefire", name: "FREE FIRE", pkg: "com.dts.freefireth", scheme: "freefire" },
+            { key: "freefiremax", name: "FREE FIRE MAX", pkg: "com.dts.freefiremax", scheme: "freefiremax" }
         ];
+
+        // Phiên bản game đã chọn (mặc định FF thường, lưu lại cho lần sau)
+        const GAME_VERSION_KEY = "sae_game_version";
+        let selectedGame = "freefire";
+
+        try {
+            const savedGame = localStorage.getItem(GAME_VERSION_KEY);
+            if (savedGame === "freefire" || savedGame === "freefiremax") selectedGame = savedGame;
+        } catch (err) {}
+
+        function getSelectedGame() {
+            return FREE_FIRE_TARGETS.find(game => game.key === selectedGame) || FREE_FIRE_TARGETS[0];
+        }
+
+        function setGameVersion(key) {
+            if (key !== "freefire" && key !== "freefiremax") return;
+            selectedGame = key;
+
+            try {
+                localStorage.setItem(GAME_VERSION_KEY, key);
+            } catch (err) {}
+
+            document.querySelectorAll(".game-version-btn").forEach(button => {
+                button.classList.toggle("active", button.dataset.game === key);
+            });
+        }
+
+        function initGameVersionSelector() {
+            document.querySelectorAll(".game-version-btn").forEach(button => {
+                button.classList.toggle("active", button.dataset.game === selectedGame);
+            });
+        }
+
+        initGameVersionSelector();
 
         function clearInjectorTimers() {
             injectorTimers.forEach(clearTimeout);
@@ -2168,35 +2257,40 @@
             if (!btn || !statusEl) return;
 
             const platform = getPlatform();
+            const game = getSelectedGame();
             btn.classList.add("done");
 
             if (platform === "android") {
-                statusEl.textContent = "ĐANG MỞ GAME...";
+                // Android dò được app đã cài: chọn FF thường thì nếu máy không có
+                // sẽ tự thử FF Max; chọn FF Max thì chỉ mở FF Max.
+                const targets = game.key === "freefire"
+                    ? [game, FREE_FIRE_TARGETS[1]]
+                    : [game];
 
-                const nativeOpened =
-                    tryNativeLaunch(FREE_FIRE_TARGETS[0].pkg) ||
-                    tryNativeLaunch(FREE_FIRE_TARGETS[1].pkg);
+                statusEl.textContent = "ĐANG MỞ " + game.name + "...";
+
+                const nativeOpened = targets.some(target => tryNativeLaunch(target.pkg));
 
                 if (nativeOpened) {
                     injectorTimers.push(setTimeout(() => {
                         injectorRunning = false;
                         injectorReady = true;
-                        statusEl.textContent = "ĐÃ MỞ GAME";
+                        statusEl.textContent = "ĐÃ MỞ " + game.name;
                     }, 1500));
                     return;
                 }
 
-                FREE_FIRE_TARGETS.forEach((game, index) => {
+                targets.forEach((target, index) => {
                     injectorTimers.push(setTimeout(() => {
                         if (gameOpened || document.visibilityState === "hidden") return;
-                        statusEl.textContent = "MỞ " + game.name + "...";
-                        openAppUrl("intent://#Intent;package=" + game.pkg + ";end");
+                        statusEl.textContent = "MỞ " + target.name + "...";
+                        openAppUrl("intent://#Intent;package=" + target.pkg + ";end");
                     }, index * 700));
                 });
 
                 injectorTimers.push(setTimeout(() => {
                     if (gameOpened || document.visibilityState === "hidden") return;
-                    openAppUrl("freefire://");
+                    openAppUrl(game.scheme + "://");
                 }, 1500));
 
                 injectorTimers.push(setTimeout(() => {
@@ -2204,15 +2298,11 @@
                     injectorRunning = false;
                     injectorReady = true;
                     statusEl.textContent = "BẤM ĐỂ VÀO GAME";
-                    showNotification("Không tự mở được game, bấm nút để thử lại!", "off");
+                    showNotification("Không mở được " + game.name + ". Chọn phiên bản còn lại nếu máy chỉ cài bản đó!", "off");
                 }, 2400));
             } else if (platform === "ios") {
-                const nativeOpened =
-                    tryNativeLaunch(FREE_FIRE_TARGETS[0].pkg) ||
-                    tryNativeLaunch(FREE_FIRE_TARGETS[1].pkg);
-
-                if (nativeOpened) {
-                    statusEl.textContent = "ĐÃ MỞ GAME";
+                if (tryNativeLaunch(game.pkg)) {
+                    statusEl.textContent = "ĐÃ MỞ " + game.name;
                     injectorTimers.push(setTimeout(() => {
                         injectorRunning = false;
                         injectorReady = true;
@@ -2220,26 +2310,21 @@
                     return;
                 }
 
-                statusEl.textContent = "MỞ FREE FIRE...";
-                openAppUrl("freefire://");
-
-                injectorTimers.push(setTimeout(() => {
-                    if (gameOpened || document.visibilityState === "hidden") return;
-                    statusEl.textContent = "MỞ FREE FIRE MAX...";
-                    openAppUrl("freefiremax://");
-                }, 700));
+                // iOS: chỉ mở đúng bản đã chọn, KHÔNG tự nhảy sang bản còn lại.
+                statusEl.textContent = "MỞ " + game.name + "...";
+                openAppUrl(game.scheme + "://");
 
                 injectorTimers.push(setTimeout(() => {
                     if (gameOpened || document.visibilityState === "hidden") return;
                     injectorRunning = false;
                     injectorReady = true;
                     statusEl.textContent = "BẤM ĐỂ VÀO GAME";
-                    showNotification("iOS cần chạm lại để mở game, bấm nút thử lại!", "off");
+                    showNotification("Không mở được " + game.name + ". Chọn phiên bản còn lại nếu máy chỉ cài bản đó!", "off");
                 }, 2000));
             } else {
                 // Trình duyệt PC không được phép mở app cài sẵn; thử scheme nếu có handler.
-                statusEl.textContent = "ĐANG MỞ GAME...";
-                openAppUrl("freefire://");
+                statusEl.textContent = "ĐANG MỞ " + game.name + "...";
+                openAppUrl(game.scheme + "://");
 
                 injectorTimers.push(setTimeout(() => {
                     injectorRunning = false;
